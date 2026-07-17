@@ -17,8 +17,6 @@ compile_commands.json
 
 mx.scratch
 
-.vscode/
-
 *.ioc.bak
 .DS_Store
 Thumbs.db
