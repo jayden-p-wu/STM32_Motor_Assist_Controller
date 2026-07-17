@@ -1,5 +1,5 @@
 /* fardriver.h
- *   PA4 - DAC1_OUT1 -> Fardriver ACC+ (throttle signal, 0.5-3.3V)
+ *   PA4 - DAC1_OUT1 -> Fardriver throttle signal, 0.5-3.3V
  *   PC8 - GPIO out -> Low-side driver gate -> Fardriver BL pin 20 (regen brake)
  *   PC9 - GPIO out -> Fardriver KEY pin 11 (ignition/enable)
  *
