@@ -136,12 +136,12 @@ int main(void)
     }
 
     /* --- Throttle control ---
-     * Only drive motor when transmission is in Drive.
-     * Cut throttle in Park, Neutral, or Reverse for safety.
+     * Only drive motor when transmission is in Drive (gear=3).
+     * Cut throttle in Park, Neutral, Reverse, Sport, or Low for safety.
      */
     float pedal_pct = 0.0f;
     float throttle_pct = 0.0f;
-    if (VEHICLE_IN_DRIVE() && VEHICLE_MOVING())
+    if ((g_vehicle.gear == PRND_DRIVE) && VEHICLE_MOVING())
     {
       pedal_pct = g_vehicle.accel_pedal_pct;
       if (pedal_pct > 100.0f) pedal_pct = 100.0f;
@@ -171,15 +171,15 @@ int main(void)
     static uint32_t s_print_ts = 0U;
     if (HAL_GetTick() - s_print_ts >= 500U) {
       s_print_ts = HAL_GetTick();
-      printf("Gear=%u  Pedal=%.1f%%  Spd=%.1fmph  SOC=%.1f%%  HV=%.0fV  MotRPM=%.0f  DAC=%.2fV  MotThrottle=%.1f%% Regen=%u\r\n",
-             (unsigned)g_vehicle.gear,
+      static const char *gear_str[] = {"Park","Reverse","Neutral","Drive","Sport","Low",
+                                        "?","?","?","?","?","?","?","?","?","Unknown"};
+      printf("Gear=%s  Pedal=%.1f%%  Brake=%u  Spd=%.1fkph  EngRPM=%.0f  DAC=%.2fV  Regen=%u\r\n",
+             gear_str[g_vehicle.gear & 0xFU],
              (double)g_vehicle.accel_pedal_pct,
-             (double)g_vehicle.vehicle_speed_mph,
-             (double)g_vehicle.pt1.battery_soc_pct,
-             (double)g_vehicle.pt1.hv_bus_voltage_v,
-             (double)g_vehicle.pt2.motor_speed_rpm,
-             (double)throttle_pct / 100.0 * 3.3,
-             (double)throttle_pct,
+             (unsigned)g_vehicle.brake_applied,
+             (double)g_vehicle.vehicle_speed_kph,
+             (double)g_vehicle.engine_speed_rpm,
+             (double)pedal_pct / 100.0 * 3.3,
              (unsigned)regen);
     }
 
