@@ -137,11 +137,12 @@ int main(void)
 
     /* --- Throttle control ---
      * Only drive motor when transmission is in Drive (gear=3).
-     * Cut throttle in Park, Neutral, Reverse, Sport, or Low for safety.
+     * Cut throttle in Park, Neutral, Reverse
+     * Also cut in Sport, or Low for now
      */
     float pedal_pct = 0.0f;
     float throttle_pct = 0.0f;
-    if ((g_vehicle.gear == PRND_DRIVE) && VEHICLE_MOVING())
+    if (g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING())
     {
       pedal_pct = g_vehicle.accel_pedal_pct;
       if (pedal_pct > 100.0f) pedal_pct = 100.0f;
@@ -151,13 +152,12 @@ int main(void)
     Fardriver_SetThrottle(throttle_pct);
 
     /* --- Regen braking ---
-     * Engage when: vehicle moving forward, pedal released, and in Drive.
-     * Do NOT regen in reverse — would fight the vehicle direction.
+     * Engage when vehicle moving forward, gas pedal released, brake pedal pressed, and in drive
      */
-    uint8_t regen = (VEHICLE_IN_DRIVE()) && VEHICLE_MOVING() && (pedal_pct < 1.0f) ? 1U : 0U;
+    uint8_t regen = g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING() && g_vehicle.brake_applied == 1U && (pedal_pct < 1.0f) ? 1U : 0U;
     Fardriver_SetRegenBrake(regen);
 
-    /* LED: solid = throttling, blink = regen, off = idle/CAN lost */
+    /* LED: solid = throttling, blink = regen, off = idle */
     if (pedal_pct > 1.0f) {
       HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
     } else if (regen) {

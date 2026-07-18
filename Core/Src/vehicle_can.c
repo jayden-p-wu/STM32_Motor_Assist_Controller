@@ -116,10 +116,10 @@ void VehicleCAN_RxIRQHandler(void)
         case CAN_ID_GEAR:             parse_gear(data, (uint8_t)hdr.DLC);              break;
         default: break;
         }
-        printf("[%lu] 0x%03lX [%u]  %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+        /* printf("[%lu] 0x%03lX [%u]  %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
             HAL_GetTick(), hdr.StdId, (unsigned)hdr.DLC,
             data[0], data[1], data[2], data[3],
-            data[4], data[5], data[6], data[7]);
+            data[4], data[5], data[6], data[7]); */
     }
 }
 
