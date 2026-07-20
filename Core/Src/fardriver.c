@@ -39,9 +39,16 @@ void Fardriver_SetKey(uint8_t on)
 
 void Fardriver_SetRegenBrake(uint8_t engage)
 {
-    /* Active-high output drives the gate of an N-channel FET.
-     * The FET drain connects to Fardriver BL (low-voltage brake, pin 20),
-     * source to GND.  When FET is on, BL is pulled to GND = regen enabled. */
+    /* GPIO drives the gate of an N-channel FET.  The FET drain connects to
+     * Fardriver BL (low-voltage brake, pin 20), source to GND.  When FET is
+     * on, BL is pulled to GND.  See REGEN_BRAKE_ACTIVE_HIGH in fardriver.h -
+     * whether GND means "brake engaged" or "brake released" depends on the
+     * Low-voltage brake polarity configured in the Fardriver PC tool. */
+#if REGEN_BRAKE_ACTIVE_HIGH
+    uint8_t pin_set = engage;
+#else
+    uint8_t pin_set = !engage;
+#endif
     HAL_GPIO_WritePin(REGEN_BRAKE_GPIO_Port, REGEN_BRAKE_Pin,
-                      engage ? GPIO_PIN_SET : GPIO_PIN_RESET);
+                      pin_set ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }

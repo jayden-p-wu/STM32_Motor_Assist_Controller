@@ -99,9 +99,11 @@ static void sif_push_bit(uint8_t bit)
             g_fardriver_status.phase_loss        = (d3 >> 0) & 1U;
 
             g_fardriver_status.motor_running     = (d4 >> 6) & 1U;
-            g_fardriver_status.brake_active      = (d4 >> 5) & 1U;
+            g_fardriver_status.brake_active       = (d4 >> 5) & 1U;
             g_fardriver_status.coasting_charge   = (d4 >> 3) & 1U;
             g_fardriver_status.antiskid          = (d4 >> 2) & 1U;
+            g_fardriver_status.fourth_gear        = (d4 >> 7) & 1U;
+            g_fardriver_status.controller_protection = (d4 >> 4) & 1U;
             /* Speed gear: D1=1 D0=1 → high, D1=1 D0=0 → mid, D1=0 D0=1 → low */
             uint8_t g = d4 & 0x03U;
             g_fardriver_status.speed_gear = (g == 3U) ? 3U : (g == 2U) ? 2U : (g == 1U) ? 1U : 0U;
@@ -112,6 +114,15 @@ static void sif_push_bit(uint8_t bit)
             g_fardriver_status.elec_brake        = (d5 >> 1) & 1U;
             g_fardriver_status.speed_limit       = (d5 >> 0) & 1U;
 
+            /* NOTE: DATA6 sign convention is unverified.  The manual says
+             * "high bit of negative current is 1, high bit of positive is 0",
+             * which matches both two's-complement (assumed here) AND
+             * sign-magnitude (bit7=sign, bits6:0=0..127 magnitude) - a
+             * common alternative in this protocol family.  If negative
+             * (regen/coast) currents look implausibly large, switch to:
+             *   int8_t mag = (int8_t)(s_frame[6] & 0x7FU);
+             *   g_fardriver_status.current_a = (s_frame[6] & 0x80U) ? -mag : mag;
+             */
             g_fardriver_status.current_a         = (int8_t)s_frame[6];
             g_fardriver_status.speed_hall_count  = ((uint16_t)s_frame[7] << 8) | s_frame[8];
             g_fardriver_status.battery_pct       = s_frame[9];

@@ -127,5 +127,6 @@ uint8_t VehicleCAN_IsAlive(uint32_t timeout_ms)
 {
     uint32_t now = HAL_GetTick();
     return ((now - g_vehicle.ts_0x201) < timeout_ms ||
+            (now - g_vehicle.ts_0x165) < timeout_ms ||
             (now - g_vehicle.ts_0x230) < timeout_ms) ? 1U : 0U;
 }

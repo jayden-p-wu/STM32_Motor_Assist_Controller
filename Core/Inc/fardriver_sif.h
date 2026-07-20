@@ -35,8 +35,10 @@ typedef struct {
     uint8_t phase_loss     : 1;
 
     /* DATA4 status */
+    uint8_t fourth_gear    : 1;   /* D7 - fourth gear indicator */
     uint8_t motor_running  : 1;   /* PWM output active */
     uint8_t brake_active   : 1;
+    uint8_t controller_protection: 1;  /* D4 - controller in protection state */
     uint8_t coasting_charge: 1;
     uint8_t antiskid       : 1;
     uint8_t speed_gear;           /* 0=no 3-speed, 1=low, 2=mid, 3=high */

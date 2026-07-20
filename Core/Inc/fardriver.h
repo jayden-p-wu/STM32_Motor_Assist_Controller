@@ -1,5 +1,5 @@
 /* fardriver.h
- *   PA4 - PWM -> Fardriver throttle signal, 0.5-3.3V
+ *   PA6 - PWM (TIM3_CH1) -> Fardriver throttle signal, 0.5-3.3V
  *   PC8 - GPIO out -> Low-side driver gate -> Fardriver BL pin 20 (regen brake)
  *   PC9 - GPIO out -> Fardriver KEY pin 11 (ignition/enable)
  *
@@ -26,6 +26,19 @@
 #define FARDRIVER_THROTTLE_MIN_V  0.5f
 #define FARDRIVER_THROTTLE_MAX_V  3.3f
 #define PWM_RESOLUTION            999U
+
+/* --- BL (low-voltage brake, pin 20) polarity ---
+ * Per the Fardriver manual, the BL input's polarity is a parameter set
+ * INSIDE the Fardriver's own PC tuning software ("Low-voltage brake"
+ * setting), not something firmware can detect:
+ *   Mode A: Hanging(float) = Drive,        GND = Park/Brake
+ *   Mode B: Hanging(float) = Park/Brake,   GND = Drive
+ * REGEN_BRAKE_ACTIVE_HIGH = 1 assumes Mode A (grounding BL engages the
+ * brake). If the controller is actually configured for Mode B, regen
+ * will be inverted (engaging regen will release the brake and vice
+ * versa). Verify the setting in the Fardriver PC tool and flip this
+ * macro to 0 if it is configured as Mode B. */
+#define REGEN_BRAKE_ACTIVE_HIGH  1
 
 /* Public API */
 void Fardriver_Init(void);

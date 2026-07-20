@@ -1,0 +1,261 @@
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+1.Overview
+The ND series Hall one-line pass-through controller is a high-end high-power permanent magnetsynchronous motor controller with the advantages of high quality, high efficiency, andintelligence. It is suitable for vehicle applications of various Hall motors. It is suitablefor middleand high speed motorcycles with in-wheel motors, mid-mounted motors, and high-end electric tricycles. Usinghigh-quality fully imported MOS core, full metal shieldingand aluminum die heat dissipation structure, thehardwarearchitecture and software implementation are perfectlymatched and refined. Precise matching control function：
+Using 32-bit intelligent microprocessor, matching high-precision motor angle encoder, andinnovative vector control algorithm and intelligent control technology, the motor efficiencyismaximized. The wide dynamic range of high efficiency enables the driving vehicle tostill obtainstrict cruising range requirements under comprehensive road conditions. Expand andhighlighttheadvantages of comfort performance and weak magnetic field expansion. Anti-slippingfunction,maximum speed limit, electronic brake, energy feedback, current limit, host computer
+communication and other functions are all available. To meet various needs. Rich software parameter configuration： Monitor and configure the
+controller through the visual
+computer interface, and
+update and upgrade online.
+www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+ The current at different speeds can be adjusted online.  The maximum speed of forward and backward, economic speed can be set.  The overall bus current and phase current can be set.  The accelerator pedal threshold can be set to adjust the response sensitivity of thepedal. Perfect protection function：
+Monitor working voltage, current, temperature, motor, gear, accelerator pedal, brake, etc. Ensure the safety of vehicle driving control:
+1.Indicator parameters
+Model Maximum
+BUS
+Current
+Maximu
+m Phase
+Current
+Operating
+Voltage
+Size Weight Max. Voltage72240 80A 300A 48V~72V 189mm*121mm*63
+.5mm
+1.7kg 88V72330 120A 400A 48V~72V 189mm*121mm*63
+.5mm
+1.7kg 88V72490 180A 660A 48V~72V 189mm*121mm*63
+.5mm
+2.0kg 88V72800 220A 800A 48V~72V 189mm*121mm*63
+.5mm
+2.0kg 88V84330 110A 400A 72V -84V 189mm*121mm*63
+.5mm
+2.0kg 100v84490 180A 660A 72V~84V 189mm*121mm*63
+.5mm
+2.0kg 100V96240 90A 240A 48V~72V 189mm*121mm*63
+.5mm
+2.0kg 110V96330 110A 400A 48V~72V 189mm*121mm*63
+.5mm
+2.0kg 110V96490 470 660 60V-96V 189mm*121mm*63
+.5mm
+2.1kg 110V721200 600A 1200A 52V~90V 238*155*88mm 4.0kg 88V721800 800A 1800A 52V~90V 238*155*88mm 4.0kg 88VItems Norm
+Functional ways Dual current loop true vector control
+Speedometer display Isolated pulse meter or CAN
+communication meter
+Energy feedback be provided with
+Protection level Fully sealed potting
+www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+Insulation class DC1000V Leakage current 0.05
+Working temperature -30℃～+55℃
+Storage temperature -45℃～+85℃
+Efficiency 99%
+Cooling method Natural Cooling
+Vibration standard GB/T2423
+Heat release requirements Good ventilation or increase air cooling
+3.Wiring diagram
+www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+ Dimensions
+S24 controller size chart
+www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+ Electrical characteristics：
+No. Items
+1 Motor HALL+ 14V（No load） 8V/30mA load
+2 Accelerator power
+supply 5V
+5.1V optional
+3 Accelerator pedal
+signal
+0.5V~4.3V
+1.1V~3.9V
+Setting onthecomputer
+4 BW5V Bluetooth 5V，To power the Bluetooth module
+5 High gear/low gear Dangling invalid
+Effective GND(ground) wire
+6 Back gear Dangling invalid
+GND or positive electricity connection is valid
+7 Alarm signal Dangling invalid
+GND or battery connection is valid
+8 Low-voltage brake Hanging driving and GND parking
+Hanging parking and GND driving
+Setting onthecomputer
+9 High-voltage brake Hanging driving and positive electricity or 12V
+connection parking
+Hanging parking and positive electricity or 12V
+connection driving
+Setting onthecomputer
+10 Small key switch
+output
+That is, the electric door lock signal supplies
+power to the controller
+11 RX Computer receiving signal, controller output, TTL level
+12 TX Computer sending signal, controller input, TTL
+level
+13 GND GND
+ Outgoing interface description
+6.1 Plastic Shell Controller Hall One-line Pass Version Outlet Diagram, It is suitable for Hall one-line communication controller. 30PIN connector recommended color definition
+21 22 23 24 25 26 27 28 29 30
+U ACC+ GND TEMP HALL+ HC HB HA
+brown and
+red
+White
+and red
+black white red blue green yellow11 12 13 14 15 16 17 18 19 20
+60VKEY TXD GND SV GND GND XH GND BH BLorange Brown
+and blue
+black White
+and
+black black Blue
+and red
+black Grey Yellowand
+www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+green green
+1 2 3 4 5 6 7 8 9 10
+60VKEY 60VC RXD SDH SDL BOOST FW/FD RE SPD SPAorange pink Black
+and red
+Yellow
+and
+white
+Blue
+and
+white
+brown Black
+and
+white
+Brown
+and
+white
+Light
+blue
+purple
+Connector Description color DefinitionpinHall wire
+length:290mm
+Motor 12V red HALL+26Motor
+temperature
+white TEMP25Motor wire GND black GND16Motor wire C blue HC27Motor wire B green HB28Motor wire A yellowHA29Electric door lock
+length: 290mm
+Electric Key Lock orange KEY11Cruise
+BOOST
+Length: 290mm
+Cruise Blue and
+red
+XH17BOOST brown BOOST6Low-voltage:
+Length: 290mm
+GND black GND18Low-voltage
+brake
+Yellowand
+green
+BL20www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+Analog
+speedometer
+wire
+Length: 290mm
+Analog
+speedometer
+purple SPA10High voltage
+brake
+Length: 290mm
+High voltage
+brake
+Grey BH19Throttle length:
+290mm
+GND black GND24Throttle signal Green
+and
+white
+SV14Throttle power Red
+and
+white
+ACC+23Anti-theft signal
+length: 290mm
+Anti-theft White
+and
+black
+FW7Phase wire brown U21Electric door
+lock
+orange KEY1Anti-theft power
+supply
+Length: 290mm
+Electricity + Pink
+and
+red
+60VC2Electricity - GND15High and low
+Level Speed
+length: 290mm
+Three-core female
+headgear 1 short-circuited three-core male
+head (high speed by default)
+High speed White
+and
+yellowSDH4GND black GND18（together）Low speed Blue
+and
+white
+SDL5Reverse
+Length:290mm
+Back gear Brown
+and
+white
+RE8GND black GND13(together)www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+Speed Velocity
+pulse signal
+Length: 290mm
+Speed pulse / one wire Light blue SPD9Program port
+Length: 190m m
+Serial power supply brown and
+green
+BW5V22Serial port Black and red RXD3Serial port Brown and
+blue
+TXD12GND black GND13www.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+ Buzzer alarm
+The controller is equipped with a buzzer. When an alarm occurs, the buzzer will send out correspondingalarm information. 7.1 Description of the number of buzzer alarm sounds:
+7.1.1 When the machine is turned on normally, the buzzer will sound once and then stop. 7.1.2 If there is a long beep, please check whether the brake and accelerator are effective at the sametime.With this function, you can check whether the brakes and accelerators are normal: step on the buzzeratthesame time, and let go of any one of them will not sound. 7.1.3 If there are 2 short beeps and 1 long beep, the cycle repeats, indicating that the controller is intheself-learning state, and the self-learning should be completed according to the self-learning operationsteps.7.1.4 If there are 2 short beeps, pause for a while, and then a short beep, repeating again and again, it
+means that the controller program verification has failed. In this case, update the programagain. 7.1.5 If there are 4 short beeps, 1 long beep, and 5 short beeps, the cycle repeats, indicating that theupgraded program does not match the controller. Please check whether the programis consistent withthemodel on the controller label. If it does not, find the matching program again upgrade. 7.1.6 If there are 1 to 15 beeps, judge the fault based on the number of sounds. The fault table is asfollows:Fault description Number of
+sounds
+1 Motor Hall fault 1 The signal wire between the controller and the
+motor is not connected properly. 2
+Accelerator pedal
+failure 2
+The accelerator does not return to zero, or the
+accelerator pedal is broken. Note that the fault
+will be displayed by default when the controller is
+restarted, and the fault will disappear after the
+self-check is passed. 3 Current protection
+restart
+3 Abnormal protection alarm
+4 phase current
+overcurrent
+4 Abnormal protection alarm
+5 Voltage failure 5 The voltage is too low or too high, which exceeds
+the allowable range of the controller. 6 Anti-theft alarm
+signal
+6 reserved
+7 Motor over
+temperature
+7 Motor temperature is too low or too high beyondthe scope of use
+8 Controller over
+temperature
+8 The temperature of the controller is too lowor toohigh beyond the use range
+9 phase current
+overflow
+9 Abnormal protection alarm
+10 10-phase current
+zero point fault
+10 Controller internal alarm
+11 Phase line short
+circuit fault
+11 The phase line is short-circuited, or the motor is
+faulty. 12 wire current zero
+point fault
+12 Controller internal alarm
+13 MOSFET upper 13 The upper bridge of the controller is damagedwww.far-driver.com
+NANJING FARDRIVER Permanent Magnet Synchronous Motor Controller-Hall Universal EditionNDNanjing Yuanqu Technology Co., Ltd.
+bridge fault
+14 MOSFET lower
+bridge fault
+14 The lower bridge of the controller is damaged15 Peak line current
+protection
+15 Hardware overcurrent protection alarmwww.far-driver.com

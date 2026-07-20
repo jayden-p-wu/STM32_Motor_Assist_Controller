@@ -1,0 +1,151 @@
+1
+>992 Tosc >32 Tosc
+64Tosc 32Tosc
+32Tosc 64Tosc
+Y29&Y34 of LCD Protocol
+This protocol is a programmatic application protocol for the transmission of
+operating status and faults between the LCD and the electric vehicle controller.
+1. Adopting the international standard SIF communication protocol, the
+interface is universal and convenient.
+2. The master-slave mode adopts single-wire unidirectional transmission, that
+is, only one transmission thread is needed, the electric vehicle controller is the
+sender, and the multi-function display
+The indicator is the receiver.
+3. The transmission baud rate has a wide adaptive range, and the host can use
+the idle time to send data.
+4. One frame of data is transmitted at a time, including 97 Bits: a start bit,
+12x8 data bits, the line idle status bit is required to be low after the
+transmission is completed.
+5. 32us <Tosc <320us.
+6. The level of the data complies with the TTL specification.
+Synchronize DATA0 DATA1 DATA2-DATA1
+0
+DATA11
+Signal Low High
+Level
+8 bits Low
+high level
+8 bits Low
+high level
+8 bits Low
+high level
+8 bits Low
+high level
+Content Meaningless Equipment
+code 8 bits
+serial number
+bits 8
+Data bits 8 Checksum
+8bits
+Name Device_Code Seq_Code checksum
+Synchronization:
+DATA(0)
+DATA(1)
+2
+7. Frame format
+Name Start sync
+signal
+Device_Code Seq_Code Data content Checksum
+Content DATA0 DATA1 DATA2-DATA10 DATA11
+Length 1Byte 1Byte 9Byte 1Byte
+Note Fixed Fill
+0x08
+Fixed Fill
+0x61
+Detailed
+description of
+data content
+Detailed
+description of
+data content
+8. Detailed description of the data content (if the specified state exists, the
+specified Bit position is 1, otherwise it is set to 0, and the reserved items are
+filled with the value 0);
+DATA2
+D7 Standby
+D6 Standby
+D5 Standby
+D4 Standby
+D3 Side support instructions
+D2 Standby
+D1 Parking instructions
+D0 Standby
+DATA3
+D7 6KM push cart logo
+D6 Hall fault
+D5 Handlebar failure
+D4 Controller fault
+D3 Undervoltage protection
+D2 Cruise
+D1 Boost
+D0 Motor phase loss
+DATA4
+D7 Fourth gear indicator
+D6 Motor running (1 running 0 stop) pwm output or not
+D5 Brake
+D4 Controller protection
+D3 Coasting charging
+D2 Anti-skid protection
+D1 Three speed 1 1 0 0
+D0 1 0 1 0
+High speed Medium speed Low speed No 3-speed
+controller
+3
+DATA5
+D7 70% current mark
+D6 Enable push-to-talk
+D5 Enable EKK standby power
+D4 Overcurrent protection
+D3 Locked-rotor protection
+D2 Reverse
+D1 Electronic brakes
+D0 Speed limit
+DATA6
+D7-D0 Running current (unit A) (The high bit of negative current is 1 The
+high bit of positive current is 0)
+DATA7
+D7-D0 Speed double byte, high byte, the number of three Hall changes within
+500 milliseconds
+DATA8
+D7-D0 Speed double byte, low byte, the number of three Hall changes within
+500 milliseconds
+DATA9
+D7-D0 Battery capacity: 0-100% current ratio value
+DATA10
+D7-D0 Current: 0-100% current ratio
+4
+********************************************************************
+Protocol description:
+1. Device code Device_Code is a constant constant, LCD device code is DATA0 =
+Device_Code = 0X08;
+2. The serial number Seq_Code is a constant constant, and the serial number
+code is DATA1 = Seq_Code = 0x61;
+3. Checksum DATA11(8Bit), 8Bit exclusive OR value of DATA0-DATA10.
+DATA11=
+DATA0^DATA1^DATA2^DATA3^DATA4^DATA5^DATA6^DATA7^DATA8^DATA9^DATA10
+4. Send in order according to the sending format
+Sync code DATA0 ~ DATA11
+5. The standard 0,1 high level time and low level time ratio are 1:2 and 2:1.
+6. Speed information: The speed information includes the change information of
+the HALL sensor inside the motor. This parameter can get the current speed of the
+motor.
+Degree value.
+ N: The number of halls that the motor has rotated per hour
+P: the number of pole pairs of the current motor
+D: The diameter of the current motor
+V: current speed
+V  (N *D* )/ 6P
+The unit is converted into KM/H. In this protocol, the controller provides a hall
+number N_Tx that the motor has rotated within 500ms, then (N = N_Tx*7200); P is the
+number of motor pole pairs, D is the motor diameter, which needs to be provided by
+the vehicle manufacturer Or fill in an approximate value, such as 23 pairs of poles,
+16 inches.
+Vehicle status: fault information simulation conditions
+Undervoltage: battery undervoltage
+Controller failure: Power on after the power line and the motor line are
+short-circuited.
+Motor Hall failure: unplug the Hall wire
+Handle failure: unplug the handle
+Brake failure: stop the car and power on
+Cruise: At this time, the vehicle is in cruise mode
+********************************************************************/ 
