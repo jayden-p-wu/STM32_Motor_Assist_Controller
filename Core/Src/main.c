@@ -448,12 +448,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(FARDRIVER_KEY_GPIO_Port, FARDRIVER_KEY_Pin, GPIO_PIN_RESET);
-
-  /* REGEN_BRAKE_Pin is open-drain, wired directly to Fardriver BL (Mode A:
-   * float = Drive/released, GND = Park/Brake). SET (float) here before GPIO
-   * mode is configured, so BL is never briefly grounded/engaged at boot. */
-  HAL_GPIO_WritePin(REGEN_BRAKE_GPIO_Port, REGEN_BRAKE_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOC, REGEN_BRAKE_Pin|FARDRIVER_KEY_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -468,23 +463,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : REGEN_BRAKE_Pin */
+  GPIO_InitStruct.Pin = REGEN_BRAKE_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(REGEN_BRAKE_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : FARDRIVER_KEY_Pin */
   GPIO_InitStruct.Pin = FARDRIVER_KEY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : REGEN_BRAKE_Pin
-   * Open-drain: PC8 wired directly to Fardriver BL (no external FET/transistor).
-   * BL has its own pull-up on the Fardriver side, so the STM32's internal
-   * open-drain NMOS pulls it to GND when set, and leaves it floating (Hi-Z)
-   * when reset - the STM32 IS the low-side driver, no external part needed. */
-  GPIO_InitStruct.Pin = REGEN_BRAKE_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(FARDRIVER_KEY_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
