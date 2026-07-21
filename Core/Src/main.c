@@ -463,9 +463,20 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : REGEN_BRAKE_Pin FARDRIVER_KEY_Pin */
-  GPIO_InitStruct.Pin = REGEN_BRAKE_Pin|FARDRIVER_KEY_Pin;
+  /*Configure GPIO pin : FARDRIVER_KEY_Pin */
+  GPIO_InitStruct.Pin = FARDRIVER_KEY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : REGEN_BRAKE_Pin
+   * Open-drain: PC8 wired directly to Fardriver BL (no external FET/transistor).
+   * BL has its own pull-up on the Fardriver side, so the STM32's internal
+   * open-drain NMOS pulls it to GND when set, and leaves it floating (Hi-Z)
+   * when reset - the STM32 IS the low-side driver, no external part needed. */
+  GPIO_InitStruct.Pin = REGEN_BRAKE_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
