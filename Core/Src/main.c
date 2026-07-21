@@ -450,9 +450,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(FARDRIVER_KEY_GPIO_Port, FARDRIVER_KEY_Pin, GPIO_PIN_RESET);
 
-  /* REGEN_BRAKE_Pin is open-drain, wired directly to Fardriver BL: SET here
-   * releases it to float (brake released) before GPIO mode is configured,
-   * so BL is never briefly grounded/engaged during boot. */
+  /* REGEN_BRAKE_Pin is open-drain, wired directly to Fardriver BL (Mode A:
+   * float = Drive/released, GND = Park/Brake). SET (float) here before GPIO
+   * mode is configured, so BL is never briefly grounded/engaged at boot. */
   HAL_GPIO_WritePin(REGEN_BRAKE_GPIO_Port, REGEN_BRAKE_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin : B1_Pin */

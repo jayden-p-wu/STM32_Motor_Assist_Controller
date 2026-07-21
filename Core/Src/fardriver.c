@@ -40,15 +40,10 @@ void Fardriver_SetKey(uint8_t on)
 void Fardriver_SetRegenBrake(uint8_t engage)
 {
     /* PC8 is configured GPIO_MODE_OUTPUT_OD and wired directly to Fardriver
-     * BL (low-voltage brake, pin 20) - no external FET.  See
-     * REGEN_BRAKE_ACTIVE_HIGH in fardriver.h - whether GND means "brake
-     * engaged" or "brake released" depends on the Low-voltage brake polarity
-     * configured in the Fardriver PC tool. */
-#if REGEN_BRAKE_ACTIVE_HIGH
+     * BL (low-voltage brake, pin 20) - no external FET. Controller is
+     * confirmed configured for Mode A (GND = Park/Brake, float = Drive),
+     * so "engage" directly means "pull BL to GND". */
     uint8_t want_grounded = engage;
-#else
-    uint8_t want_grounded = !engage;
-#endif
     /* Open-drain write polarity is inverted vs push-pull: RESET (0) turns
      * the pin's internal NMOS ON, pulling it to GND; SET (1) turns it OFF,
      * leaving the pin floating (Hi-Z). */

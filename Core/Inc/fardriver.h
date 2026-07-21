@@ -33,12 +33,8 @@
  * setting), not something firmware can detect:
  *   Mode A: Hanging(float) = Drive,        GND = Park/Brake
  *   Mode B: Hanging(float) = Park/Brake,   GND = Drive
- * REGEN_BRAKE_ACTIVE_HIGH = 1 assumes Mode A (grounding BL engages the
- * brake). If the controller is actually configured for Mode B, regen
- * will be inverted (engaging regen will release the brake and vice
- * versa). Verify the setting in the Fardriver PC tool and flip this
- * macro to 0 if it is configured as Mode B. */
-#define REGEN_BRAKE_ACTIVE_HIGH  1
+ * Confirmed via wire-disconnect test that this controller is configured
+ * for Mode A (grounding BL engages the brake) - firmware assumes Mode A. */
 
 /* Public API */
 void Fardriver_Init(void);
