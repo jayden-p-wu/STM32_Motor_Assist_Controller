@@ -125,37 +125,64 @@ static void Debug_HandleLine(char *line)
   }
 }
 
-/* Non-blocking UART poll (0 ms timeout) so the control loop never stalls
- * waiting on serial input; call once per loop iteration. */
+/* RX is interrupt-driven (USART2 has no hardware FIFO, so polling once per
+ * ~10-20 ms loop iteration can miss/overwrite bytes). The ISR just stashes
+ * each byte in a ring buffer and re-arms itself; Debug_PollUART() drains
+ * the buffer and assembles/dispatches lines from the main loop. */
+#define DBG_RXBUF_SIZE 64U
+static volatile uint8_t  dbg_rxbuf[DBG_RXBUF_SIZE];
+static volatile uint16_t dbg_rxbuf_head = 0U;
+static volatile uint16_t dbg_rxbuf_tail = 0U;
+static uint8_t           dbg_rx_byte;
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART2)
+  {
+    uint16_t next = (uint16_t)((dbg_rxbuf_head + 1U) % DBG_RXBUF_SIZE);
+    if (next != dbg_rxbuf_tail)  /* drop byte if buffer is full */
+    {
+      dbg_rxbuf[dbg_rxbuf_head] = dbg_rx_byte;
+      dbg_rxbuf_head = next;
+    }
+    HAL_UART_Receive_IT(&huart2, &dbg_rx_byte, 1U);
+  }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART2)
+  {
+    __HAL_UART_CLEAR_FLAG(huart, UART_CLEAR_OREF);
+    HAL_UART_Receive_IT(&huart2, &dbg_rx_byte, 1U);
+  }
+}
+
+/* Drains the ISR ring buffer and assembles/dispatches lines; call once per
+ * main loop iteration. */
 static void Debug_PollUART(void)
 {
   static char    line[32];
   static uint8_t idx = 0U;
-  uint8_t        rx_byte;
-  HAL_StatusTypeDef status = HAL_UART_Receive(&huart2, &rx_byte, 1, 0);
 
-  if (status == HAL_ERROR)
+  while (dbg_rxbuf_tail != dbg_rxbuf_head)
   {
-    __HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF);
-    return;
-  }
-  if (status != HAL_OK)
-  {
-    return; /* HAL_TIMEOUT: no byte available right now */
-  }
+    uint8_t rx_byte = dbg_rxbuf[dbg_rxbuf_tail];
+    dbg_rxbuf_tail = (uint16_t)((dbg_rxbuf_tail + 1U) % DBG_RXBUF_SIZE);
 
-  if (rx_byte == '\r' || rx_byte == '\n')
-  {
-    if (idx > 0U)
+    if (rx_byte == '\r' || rx_byte == '\n')
     {
-      line[idx] = '\0';
-      Debug_HandleLine(line);
-      idx = 0U;
+      if (idx > 0U)
+      {
+        line[idx] = '\0';
+        Debug_HandleLine(line);
+        idx = 0U;
+      }
     }
-  }
-  else if (idx < sizeof(line) - 1U)
-  {
-    line[idx++] = (char)rx_byte;
+    else if (idx < sizeof(line) - 1U)
+    {
+      line[idx++] = (char)rx_byte;
+    }
   }
 }
 #endif /* DEBUG_SERIAL_CONTROL */
@@ -203,6 +230,10 @@ int main(void)
 
   Fardriver_SetKey(1);        /* power on the Fardriver controller */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET); /* green on */
+
+#if DEBUG_SERIAL_CONTROL
+  HAL_UART_Receive_IT(&huart2, &dbg_rx_byte, 1U);
+#endif
 
   /* USER CODE END 2 */
 
