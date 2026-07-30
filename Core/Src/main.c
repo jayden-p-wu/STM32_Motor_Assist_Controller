@@ -25,6 +25,8 @@
 #include "fardriver_sif.h"
 #include "vehicle_can.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,6 +36,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+/* Serial debug console: lets you set throttle/regen over UART without
+ * needing live vehicle CAN traffic. Set to 0 for a normal build. */
+#define DEBUG_SERIAL_CONTROL 1
 
 /* USER CODE END PD */
 
@@ -69,6 +75,90 @@ static void MX_TIM3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+#if DEBUG_SERIAL_CONTROL
+/* Commands (newline terminated): "T<0-100>" set throttle %, "R0"/"R1"
+ * regen off/on, "N" release override and resume normal CAN control, "?"
+ * print current state. Overrides the safety cutout while active. */
+static uint8_t dbg_override_active = 0U;
+static float   dbg_throttle_pct = 0.0f;
+static uint8_t dbg_regen = 0U;
+
+static void Debug_HandleLine(char *line)
+{
+  size_t len = strlen(line);
+  if (len == 0U)
+  {
+    return;
+  }
+
+  if ((line[0] == 'T' || line[0] == 't') && len > 1U)
+  {
+    float val = strtof(&line[1], NULL);
+    if (val < 0.0f) val = 0.0f;
+    if (val > 100.0f) val = 100.0f;
+    dbg_throttle_pct = val;
+    dbg_override_active = 1U;
+    printf("[DBG] throttle=%.1f%%\r\n", (double)dbg_throttle_pct);
+  }
+  else if ((line[0] == 'R' || line[0] == 'r') && len > 1U)
+  {
+    dbg_regen = (line[1] != '0') ? 1U : 0U;
+    dbg_override_active = 1U;
+    printf("[DBG] regen=%u\r\n", (unsigned)dbg_regen);
+  }
+  else if (line[0] == 'N' || line[0] == 'n')
+  {
+    dbg_override_active = 0U;
+    dbg_throttle_pct = 0.0f;
+    dbg_regen = 0U;
+    printf("[DBG] override released, resuming CAN control\r\n");
+  }
+  else if (line[0] == '?')
+  {
+    printf("[DBG] override=%u throttle=%.1f%% regen=%u\r\n",
+           (unsigned)dbg_override_active, (double)dbg_throttle_pct, (unsigned)dbg_regen);
+  }
+  else
+  {
+    printf("[DBG] unknown cmd '%s' (use T<0-100>, R0/R1, N, ?)\r\n", line);
+  }
+}
+
+/* Non-blocking UART poll (0 ms timeout) so the control loop never stalls
+ * waiting on serial input; call once per loop iteration. */
+static void Debug_PollUART(void)
+{
+  static char    line[32];
+  static uint8_t idx = 0U;
+  uint8_t        rx_byte;
+  HAL_StatusTypeDef status = HAL_UART_Receive(&huart2, &rx_byte, 1, 0);
+
+  if (status == HAL_ERROR)
+  {
+    __HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF);
+    return;
+  }
+  if (status != HAL_OK)
+  {
+    return; /* HAL_TIMEOUT: no byte available right now */
+  }
+
+  if (rx_byte == '\r' || rx_byte == '\n')
+  {
+    if (idx > 0U)
+    {
+      line[idx] = '\0';
+      Debug_HandleLine(line);
+      idx = 0U;
+    }
+  }
+  else if (idx < sizeof(line) - 1U)
+  {
+    line[idx++] = (char)rx_byte;
+  }
+}
+#endif /* DEBUG_SERIAL_CONTROL */
 
 /* USER CODE END 0 */
 
@@ -118,16 +208,25 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint8_t rx_data; // temp debug
-  HAL_StatusTypeDef status; // temp debug
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-    /* --- Safety: if CAN is lost, immediately cut throttle and regen --- */
-    if (!VehicleCAN_IsAlive(VEH_CAN_TIMEOUT_MS))
+#if DEBUG_SERIAL_CONTROL
+    /* Non-blocking; keep polling even when CAN is dead so bench testing
+     * doesn't need a live vehicle bus. */
+    Debug_PollUART();
+#endif
+
+    /* --- Safety: if CAN is lost, immediately cut throttle and regen ---
+     * Bypassed while a serial debug override is active. */
+    if (!VehicleCAN_IsAlive(VEH_CAN_TIMEOUT_MS)
+#if DEBUG_SERIAL_CONTROL
+        && !dbg_override_active
+#endif
+       )
     {
       Fardriver_SetThrottle(0.0f);
       Fardriver_SetRegenBrake(0);
@@ -143,42 +242,37 @@ int main(void)
      */
     float pedal_pct = 0.0f;
     float throttle_pct = 0.0f;
-    if (g_vehicle.gear == PRND_DRIVE || g_vehicle.gear == PRND_PARK /* && VEHICLE_MOVING() */)
+#if DEBUG_SERIAL_CONTROL
+    if (dbg_override_active)
     {
-      pedal_pct = g_vehicle.accel_pedal_pct;
-      if (pedal_pct > 100.0f) pedal_pct = 100.0f;
+      throttle_pct = dbg_throttle_pct;
     }
-    throttle_pct = pedal_pct * 10; // 0-33% pedal -> 0-100% throttle
-    if (throttle_pct > 100.0f) throttle_pct = 100.0f;
+    else
+#endif
+    {
+      if (g_vehicle.gear == PRND_DRIVE || g_vehicle.gear == PRND_PARK /* && VEHICLE_MOVING() */)
+      {
+        pedal_pct = g_vehicle.accel_pedal_pct;
+        if (pedal_pct > 100.0f) pedal_pct = 100.0f;
+      }
+      throttle_pct = pedal_pct * 10; // 0-33% pedal -> 0-100% throttle
+      if (throttle_pct > 100.0f) throttle_pct = 100.0f;
+    }
 
     /* --- Regen braking ---
      * Engage when vehicle moving forward, gas pedal released, brake pedal pressed, and in drive
      */
-    uint8_t regen = /* g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING() */ 1 /* && g_vehicle.brake_applied == 1U */ && (pedal_pct < 1.0f) ? 1U : 0U;
-    
-    /* DEBUGGING CODE START - COMMENT OUT */
-    status = HAL_UART_Receive(&huart2, &rx_data, 1, 20);
-
-    if (status == HAL_OK)
+    uint8_t regen;
+#if DEBUG_SERIAL_CONTROL
+    if (dbg_override_active)
     {
-        // Character received successfully! Process it here.
-        if (rx_data == '\r' || rx_data == '\n') {
-            printf("\r\nReceived newline!\r\n");
-        } else {
-            printf("Received: %c\r\n", rx_data);
-        }
+      regen = dbg_regen;
     }
-    else if (status == HAL_TIMEOUT)
+    else
+#endif
     {
-        // No data arrived within 20ms. 
-        // Run your other background tasks safely here.
+      regen = /* g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING() */ 1 /* && g_vehicle.brake_applied == 1U */ && (pedal_pct < 1.0f) ? 1U : 0U;
     }
-    else if (status == HAL_ERROR)
-    {
-        // Optional: Clear overrun flags if communication errors occur
-        __HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF);
-    }
-    /* DEBUGGING CODE END */
 
     /* Output to Fardriver */
     float pwm_val = Fardriver_SetThrottle(throttle_pct);
