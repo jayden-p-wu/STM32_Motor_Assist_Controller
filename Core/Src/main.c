@@ -118,6 +118,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint8_t rx_data; // temp debug
+  HAL_StatusTypeDef status; // temp debug
   while (1)
   {
     /* USER CODE END WHILE */
@@ -141,19 +143,45 @@ int main(void)
      */
     float pedal_pct = 0.0f;
     float throttle_pct = 0.0f;
-    if (g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING())
+    if (g_vehicle.gear == PRND_DRIVE || g_vehicle.gear == PRND_PARK /* && VEHICLE_MOVING() */)
     {
       pedal_pct = g_vehicle.accel_pedal_pct;
       if (pedal_pct > 100.0f) pedal_pct = 100.0f;
     }
-    throttle_pct = pedal_pct * 4; // 0-20% pedal -> 0-100% throttle
+    throttle_pct = pedal_pct * 10; // 0-33% pedal -> 0-100% throttle
     if (throttle_pct > 100.0f) throttle_pct = 100.0f;
-    float pwm_val = Fardriver_SetThrottle(throttle_pct);
 
     /* --- Regen braking ---
      * Engage when vehicle moving forward, gas pedal released, brake pedal pressed, and in drive
      */
-    uint8_t regen = g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING() && g_vehicle.brake_applied == 1U && (pedal_pct < 1.0f) ? 1U : 0U;
+    uint8_t regen = /* g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING() */ 1 /* && g_vehicle.brake_applied == 1U */ && (pedal_pct < 1.0f) ? 1U : 0U;
+    
+    /* DEBUGGING CODE START - COMMENT OUT */
+    status = HAL_UART_Receive(&huart2, &rx_data, 1, 20);
+
+    if (status == HAL_OK)
+    {
+        // Character received successfully! Process it here.
+        if (rx_data == '\r' || rx_data == '\n') {
+            printf("\r\nReceived newline!\r\n");
+        } else {
+            printf("Received: %c\r\n", rx_data);
+        }
+    }
+    else if (status == HAL_TIMEOUT)
+    {
+        // No data arrived within 20ms. 
+        // Run your other background tasks safely here.
+    }
+    else if (status == HAL_ERROR)
+    {
+        // Optional: Clear overrun flags if communication errors occur
+        __HAL_UART_CLEAR_FLAG(&huart2, UART_CLEAR_OREF);
+    }
+    /* DEBUGGING CODE END */
+
+    /* Output to Fardriver */
+    float pwm_val = Fardriver_SetThrottle(throttle_pct);
     Fardriver_SetRegenBrake(regen);
 
     /* LED: solid = throttling, blink = regen, off = idle */

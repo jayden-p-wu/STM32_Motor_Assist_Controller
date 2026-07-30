@@ -43,7 +43,7 @@ void Fardriver_SetRegenBrake(uint8_t engage)
      * BL (low-voltage brake, pin 20) - no external FET. Controller is
      * confirmed configured for Mode A (GND = Park/Brake, float = Drive),
      * so "engage" directly means "pull BL to GND". */
-    uint8_t want_grounded = engage;
+    uint8_t want_grounded = engage; // set function P+StopFloat in far driver
     /* Open-drain write polarity is inverted vs push-pull: RESET (0) turns
      * the pin's internal NMOS ON, pulling it to GND; SET (1) turns it OFF,
      * leaving the pin floating (Hi-Z). */
