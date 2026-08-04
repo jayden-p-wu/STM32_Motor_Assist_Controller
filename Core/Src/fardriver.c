@@ -12,23 +12,31 @@ void Fardriver_Init(void)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
 
     Fardriver_SetKey(0);
-    Fardriver_SetThrottle(0.0f);
+    Fardriver_SetThrottlePct(0.0f);
     Fardriver_SetRegenBrake(0);
 }
 
-double Fardriver_SetThrottle(float percent)
+float Fardriver_SetThrottlePct(float percent)
 {
-    if (percent < 0.0f)   percent = 0.0f;
+    if (percent < 0.0f) percent = 0.0f;
     if (percent > 100.0f) percent = 100.0f;
 
     float target_voltage = FARDRIVER_THROTTLE_MIN_V 
         + ((percent / 100.0f) * (FARDRIVER_THROTTLE_MAX_V - FARDRIVER_THROTTLE_MIN_V));
 
-    uint32_t pwm_val = (uint32_t)((target_voltage / 3.3f) * PWM_RESOLUTION);
+    return Fardriver_SetThrottleVoltage(target_voltage);
+}
+
+float Fardriver_SetThrottleVoltage(float voltage)
+{
+    if (voltage < 0.0f) voltage = 0.0f;
+    if (voltage > 3.3f) voltage = 3.3f;
+
+    uint32_t pwm_val = (uint32_t)((voltage / 3.3f) * PWM_PERIOD_COUNTS);
 
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwm_val);
 
-    return (double)pwm_val;
+    return voltage;
 }
 
 void Fardriver_SetKey(uint8_t on)

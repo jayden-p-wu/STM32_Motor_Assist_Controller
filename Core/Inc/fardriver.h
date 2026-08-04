@@ -25,7 +25,7 @@
  */
 #define FARDRIVER_THROTTLE_MIN_V  0.5f
 #define FARDRIVER_THROTTLE_MAX_V  3.3f
-#define PWM_RESOLUTION            999U
+#define PWM_PERIOD_COUNTS         3199U
 
 /* --- BL (low-voltage brake, pin 20) polarity ---
  * Per the Fardriver manual, the BL input's polarity is a parameter set
@@ -38,7 +38,8 @@
 
 /* Public API */
 void Fardriver_Init(void);
-double Fardriver_SetThrottle(float percent);   /* 0.0 = idle, 100.0 = full */
+float Fardriver_SetThrottlePct(float percent);   /* 0.0 = idle, 100.0 = full */
+float Fardriver_SetThrottleVoltage(float voltage);
 void Fardriver_SetKey(uint8_t on);           /* 1 = key on, 0 = key off */
 void Fardriver_SetRegenBrake(uint8_t engage); /* 1 = engage regen, 0 = release */
 

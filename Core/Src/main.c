@@ -259,7 +259,7 @@ int main(void)
 #endif
        )
     {
-      Fardriver_SetThrottle(0.0f);
+      Fardriver_SetThrottlePct(0.0f);
       Fardriver_SetRegenBrake(0);
       HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
       HAL_Delay(10);
@@ -306,7 +306,7 @@ int main(void)
     }
 
     /* Output to Fardriver */
-    float pwm_val = Fardriver_SetThrottle(throttle_pct);
+    float throttle_voltage = Fardriver_SetThrottlePct(throttle_pct);
     Fardriver_SetRegenBrake(regen);
 
     /* LED: solid = throttling, blink = regen, off = idle */
@@ -331,7 +331,7 @@ int main(void)
              (unsigned)g_vehicle.brake_applied,
              (double)g_vehicle.vehicle_speed_kph,
              (double)g_vehicle.engine_speed_rpm,
-             ((double)pwm_val / 999.0) * 3.3,
+             (float)throttle_voltage,
              (double)throttle_pct,
              (unsigned)regen);
     }
@@ -505,9 +505,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 63;
+  htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 999;
+  htim3.Init.Period = 3199;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -532,7 +532,7 @@ static void MX_TIM3_Init(void)
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCFastMode = TIM_OCFAST_ENABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
