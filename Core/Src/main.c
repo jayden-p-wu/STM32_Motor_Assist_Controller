@@ -286,7 +286,7 @@ int main(void)
         pedal_pct = g_vehicle.accel_pedal_pct;
         if (pedal_pct > 100.0f) pedal_pct = 100.0f;
       }
-      throttle_pct = pedal_pct * 10; // 0-33% pedal -> 0-100% throttle
+      throttle_pct = pedal_pct * 1; // 0-100% pedal -> 0-100% throttle
       if (throttle_pct > 100.0f) throttle_pct = 100.0f;
     }
 
