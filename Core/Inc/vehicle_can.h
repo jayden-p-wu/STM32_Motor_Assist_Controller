@@ -45,7 +45,7 @@ extern VehicleCANData_t g_vehicle;
 #define VEHICLE_IN_DRIVE() (g_vehicle.gear == PRND_DRIVE || g_vehicle.gear == PRND_SPORT || g_vehicle.gear == PRND_LOW)
 #define VEHICLE_IN_REVERSE() (g_vehicle.gear == PRND_REVERSE)
 #define VEHICLE_IN_PARK() (g_vehicle.gear == PRND_PARK || g_vehicle.gear == PRND_NEUTRAL)
-#define VEHICLE_MOVING() (g_vehicle.vehicle_speed_kph > 3.2f)  /* ~2 mph */
+#define VEHICLE_MOVING() 1 // TEMP DEBUG PLEASE REMOVE (g_vehicle.vehicle_speed_kph > 3.2f)  /* ~2 mph */
 
 void    VehicleCAN_Init(void);
 void    VehicleCAN_RxIRQHandler(void);

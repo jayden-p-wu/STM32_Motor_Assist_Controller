@@ -39,7 +39,7 @@
 
 /* Serial debug console: lets you set throttle/regen over UART without
  * needing live vehicle CAN traffic. Set to 0 for a normal build. */
-#define DEBUG_SERIAL_CONTROL 1
+#define DEBUG_SERIAL_CONTROL 0
 
 /* USER CODE END PD */
 
@@ -281,7 +281,7 @@ int main(void)
     else
 #endif
     {
-      if (g_vehicle.gear == PRND_DRIVE || g_vehicle.gear == PRND_PARK /* && VEHICLE_MOVING() */)
+      if (g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING())
       {
         pedal_pct = g_vehicle.accel_pedal_pct;
         if (pedal_pct > 100.0f) pedal_pct = 100.0f;
@@ -302,7 +302,7 @@ int main(void)
     else
 #endif
     {
-      regen = /* g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING() */ 1 /* && g_vehicle.brake_applied == 1U */ && (pedal_pct < 1.0f) ? 1U : 0U;
+      regen = g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING() /* && g_vehicle.brake_applied == 1U */ && (pedal_pct < 1.0f) ? 1U : 0U;
     }
 
     /* Output to Fardriver */
