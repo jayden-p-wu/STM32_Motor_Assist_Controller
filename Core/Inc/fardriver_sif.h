@@ -13,8 +13,8 @@
  *
  * Frame = 12 bytes: DATA0(0x08) DATA1(0x61) DATA2..DATA10 DATA11(XOR checksum)
  *
- * Hardware: connect Fardriver TXD to PA0 (TIM2_CH1 input capture, both edges).
- *           TIM2 must run at 1 MHz (prescaler = 71 @ 72 MHz sysclk).
+* Hardware: connect Fardriver TXD to PA8 (TIM1_CH1 input capture, both edges).
+*           TIM1 must run at 1 MHz (prescaler = 71 @ 72 MHz sysclk).
  */
 
 #ifndef FARDRIVER_SIF_H
@@ -68,12 +68,30 @@ typedef struct {
 
 extern FardriverSIF_t g_fardriver_status;
 
-/* Call from TIM2 global interrupt handler in stm32f3xx_it.c:
- *   void TIM2_IRQHandler(void) { FardriverSIF_TIM2_IRQHandler(); }
- */
-void FardriverSIF_TIM2_IRQHandler(void);
+/* Frame size visible to other translation units */
+#define SIF_FRAME_BYTES      12U
 
-/* Call once in main before starting TIM2 input capture */
+#define SIF_DEBUG_NONE            0U
+#define SIF_DEBUG_SYNC_LOW        1U
+#define SIF_DEBUG_SYNC_HIGH       2U
+#define SIF_DEBUG_SHORT_PULSE     3U
+#define SIF_DEBUG_INVALID_FRAME   4U
+#define SIF_DEBUG_UNEXPECTED_EDGE 5U
+#define SIF_DEBUG_CAPTURE         6U
+
+extern volatile uint8_t g_fardriver_sif_debug_event;
+extern volatile uint32_t g_fardriver_sif_last_dt;
+extern volatile uint8_t  g_fardriver_sif_last_pin;
+/* Last invalid-frame snapshot for debugging (copied from ISR) */
+extern volatile uint8_t g_fardriver_sif_last_frame[SIF_FRAME_BYTES];
+extern volatile uint8_t g_fardriver_sif_last_frame_len;
+
+/* Call from TIM1 capture/compare interrupt handler in stm32f3xx_it.c:
+ *   void TIM1_CC_IRQHandler(void) { FardriverSIF_TIM1_IRQHandler(); }
+ */
+void FardriverSIF_TIM1_IRQHandler(void);
+
+/* Call once in main before starting TIM1 input capture */
 void FardriverSIF_Init(void);
 
 /* Compute vehicle speed in km/h from hall count.

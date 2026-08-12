@@ -58,10 +58,9 @@
 
 /* External variables --------------------------------------------------------*/
 extern CAN_HandleTypeDef hcan;
-extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim1;
 extern UART_HandleTypeDef huart2;
 /* USER CODE BEGIN EV */
-extern TIM_HandleTypeDef htim2;
 extern CAN_HandleTypeDef hcan;
 extern UART_HandleTypeDef huart2;
 /* USER CODE END EV */
@@ -219,17 +218,17 @@ void USB_LP_CAN_RX0_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles TIM2 global interrupt.
+  * @brief This function handles TIM1 capture compare interrupt.
   */
-void TIM2_IRQHandler(void)
+void TIM1_CC_IRQHandler(void)
 {
-  /* USER CODE BEGIN TIM2_IRQn 0 */
-  FardriverSIF_TIM2_IRQHandler();
-  /* USER CODE END TIM2_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim2);
-  /* USER CODE BEGIN TIM2_IRQn 1 */
+  /* USER CODE BEGIN TIM1_CC_IRQn 0 */
+  FardriverSIF_TIM1_IRQHandler();
+  /* USER CODE END TIM1_CC_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_CC_IRQn 1 */
 
-  /* USER CODE END TIM2_IRQn 1 */
+  /* USER CODE END TIM1_CC_IRQn 1 */
 }
 
 /**

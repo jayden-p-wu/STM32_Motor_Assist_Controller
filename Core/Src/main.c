@@ -51,7 +51,7 @@
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan;
 
-TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
@@ -67,8 +67,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_CAN_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -220,13 +220,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_CAN_Init();
-  MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
   Fardriver_Init();
   VehicleCAN_Init();
-  /* FardriverSIF_Init(); */  /* start TIM2 input capture — disabled until SIF feedback is needed */
+  //FardriverSIF_Init(); /* start TIM1 input capture */
 
   Fardriver_SetKey(1);        /* power on the Fardriver controller */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET); /* green on */
@@ -281,7 +281,7 @@ int main(void)
     else
 #endif
     {
-      if (g_vehicle.gear == PRND_DRIVE && VEHICLE_MOVING())
+      if (g_vehicle.gear == PRND_DRIVE /* && VEHICLE_MOVING() */)
       {
         pedal_pct = g_vehicle.accel_pedal_pct;
         if (pedal_pct > 100.0f) pedal_pct = 100.0f;
@@ -308,6 +308,48 @@ int main(void)
     /* Output to Fardriver */
     float throttle_voltage = Fardriver_SetThrottlePct(throttle_pct);
     Fardriver_SetRegenBrake(regen);
+
+    /* Debug: show SIF input state and valid frames.
+     * CAPTURE fires on every edge (~192/frame) — too noisy to print, so it's
+     * consumed silently and only the events that matter are logged. */
+    if (g_fardriver_sif_debug_event != SIF_DEBUG_NONE) {
+      uint8_t event = g_fardriver_sif_debug_event;
+      g_fardriver_sif_debug_event = SIF_DEBUG_NONE;
+
+      if (event != SIF_DEBUG_CAPTURE) {
+        const char *event_name = "?";
+        switch (event) {
+        case SIF_DEBUG_SYNC_LOW:        event_name = "SYNC_LOW"; break;
+        case SIF_DEBUG_SYNC_HIGH:       event_name = "SYNC_HIGH"; break;
+        case SIF_DEBUG_SHORT_PULSE:     event_name = "SHORT_PULSE"; break;
+        case SIF_DEBUG_INVALID_FRAME:   event_name = "INVALID_FRAME"; break;
+        case SIF_DEBUG_UNEXPECTED_EDGE: event_name = "UNEXPECTED_EDGE"; break;
+        default: break;
+        }
+        printf("[SIF] event=%s dt=%lu pin=%u\r\n",
+               event_name,
+               (unsigned long)g_fardriver_sif_last_dt,
+               (unsigned)g_fardriver_sif_last_pin);
+        if (event == SIF_DEBUG_INVALID_FRAME) {
+          /* Print a hexdump of the partial/invalid frame for tuning */
+          printf("[SIF] invalid frame snapshot (%u bytes): ", (unsigned)g_fardriver_sif_last_frame_len);
+          for (uint8_t i = 0; i < g_fardriver_sif_last_frame_len; i++) {
+            printf("%02X ", (unsigned)g_fardriver_sif_last_frame[i]);
+          }
+          printf("\r\n");
+        }
+      }
+    }
+
+    if (g_fardriver_status.fresh) {
+      printf("[SIF] valid frame gear=%u batt=%u cur=%u boost=%u hall=%u\r\n",
+             (unsigned)g_fardriver_status.speed_gear,
+             (unsigned)g_fardriver_status.battery_pct,
+             (unsigned)g_fardriver_status.current_pct,
+             (unsigned)g_fardriver_status.boost_active,
+             (unsigned)g_fardriver_status.speed_hall_count);
+      g_fardriver_status.fresh = 0U;
+    }
 
     /* LED: solid = throttling, blink = regen, off = idle */
     if (pedal_pct > 1.0f) {
@@ -379,10 +421,10 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_TIM2
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_TIM1
                               |RCC_PERIPHCLK_TIM34;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-  PeriphClkInit.Tim2ClockSelection = RCC_TIM2CLK_HCLK;
+  PeriphClkInit.Tim1ClockSelection = RCC_TIM1CLK_HCLK;
   PeriphClkInit.Tim34ClockSelection = RCC_TIM34CLK_HCLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -428,60 +470,62 @@ static void MX_CAN_Init(void)
 }
 
 /**
-  * @brief TIM2 Initialization Function
+  * @brief TIM1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_TIM2_Init(void)
+static void MX_TIM1_Init(void)
 {
 
-  /* USER CODE BEGIN TIM2_Init 0 */
+  /* USER CODE BEGIN TIM1_Init 0 */
 
-  /* USER CODE END TIM2_Init 0 */
+  /* USER CODE END TIM1_Init 0 */
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_IC_InitTypeDef sConfigIC = {0};
 
-  /* USER CODE BEGIN TIM2_Init 1 */
+  /* USER CODE BEGIN TIM1_Init 1 */
 
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 71;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 0xFFFFFFFF;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 71;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 0xFFFF;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
   }
   sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
+  if (HAL_TIM_IC_Init(&htim1) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger2 = TIM_TRGO2_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_BOTHEDGE;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  sConfigIC.ICFilter = 15;
+  if (HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN TIM2_Init 2 */
+  /* USER CODE BEGIN TIM1_Init 2 */
 
-  /* USER CODE END TIM2_Init 2 */
+  /* USER CODE END TIM1_Init 2 */
 
 }
 

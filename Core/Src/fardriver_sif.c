@@ -1,10 +1,12 @@
 /* fardriver_sif.c
- * Y29/Y34 SIF one-line protocol decoder using TIM2 input capture on PA0.
+ * Y29/Y34 SIF one-line protocol decoder using TIM1 input capture on PA8.
  *
  * Timer setup (configure in CubeMX before calling FardriverSIF_Init):
- *   TIM2, prescaler = 71, period = 0xFFFFFFFF
- *   CH1 on PA0: input capture, IC1Selection = Direct TI1, IC1Filter = 0
- *   Enable TIM2 global interrupt.
+ *   TIM1, prescaler = 71, period = 0xFFFF
+ *   CH1 on PA8: input capture, IC1Selection = Direct TI1, IC1Filter = 0
+ *   Use GPIO pull-down so the single-wire bus idles low when the display is
+ *   disconnected or not transmitting.
+ *   Enable TIM1 capture/compare interrupt.
  *
  * How it works:
  *   The ISR is called on every edge of the SIF signal.  We measure the
@@ -16,9 +18,22 @@
 #include "main.h"
 #include <string.h>
 
-/* --- Protocol constants (in µs at Tosc = 32 µs minimum) --- */
-#define SIF_SYNC_MIN_US    31744U   /* 992 * 32 µs */
-#define SIF_BIT_MIN_US       960U   /* 30 * 32 µs  — below this = noise */
+/* --- Protocol constants, derived from the documented Tosc range (32-320 us),
+ * not from any one observed trace -- so decode stays correct even if this
+ * bus (or another unit) runs at a different Tosc than we've measured.
+ *   min data-bit half-phase = 32 * Tosc_min = 32 * 32   =  1024 us
+ *   max data-bit half-phase = 64 * Tosc_max = 64 * 320  = 20480 us
+ *   min sync low pulse      = 992 * Tosc_min = 992 * 32 = 31744 us
+ * SIF_BIT_MAX_US and SIF_SYNC_MIN_US straddle the gap between the largest
+ * possible bit phase and the smallest possible sync, so the two can never
+ * be confused regardless of the bus's actual Tosc. */
+#define SIF_SYNC_MIN_US    26000U   /* long low pulse for sync detection */
+#define SIF_BIT_MIN_US       512U   /* smallest valid single-phase duration for a data bit */
+#define SIF_BIT_MAX_US     22000U   /* largest valid single-phase duration for a data bit */
+#define SIF_NOISE_MAX_US     700U   /* ignore short noise/glitch edges (EMI); documented min
+                                      * real bit phase is 1024us, so this has large margin */
+/* If no edges for this long, abandon current frame parsing (µs) */
+#define SIF_FRAME_TIMEOUT_US 200000U
 
 #define SIF_FRAME_BYTES      12U
 #define SIF_DEVICE_CODE     0x08U
@@ -26,32 +41,43 @@
 
 /* Published state */
 FardriverSIF_t g_fardriver_status;
+volatile uint8_t g_fardriver_sif_debug_event = SIF_DEBUG_NONE;
+volatile uint32_t g_fardriver_sif_last_dt = 0;
+volatile uint8_t  g_fardriver_sif_last_pin = 0;
+/* Snapshot of last invalid frame for debug */
+volatile uint8_t g_fardriver_sif_last_frame[SIF_FRAME_BYTES];
+volatile uint8_t g_fardriver_sif_last_frame_len = 0;
 
-/* --- Internal state machine --- */
-typedef enum {
-    SIF_WAIT_SYNC_LOW = 0,  /* waiting for the long low sync pulse */
-    SIF_WAIT_SYNC_HIGH,     /* sync low seen, waiting for the trailing high */
-    SIF_RECV_BIT_HIGH,      /* measuring high portion of a data bit */
-    SIF_RECV_BIT_LOW        /* measuring low portion of a data bit */
-} SifState_t;
-
-static SifState_t  s_state      = SIF_WAIT_SYNC_LOW;
-static uint32_t    s_edge_ts    = 0;      /* timestamp of last edge (µs) */
-static uint32_t    s_high_us    = 0;      /* width of current bit's high pulse */
+static uint16_t    s_edge_ts    = 0;      /* timestamp of last edge (µs, 16-bit timer wrap) */
+static uint8_t     s_sync_seen  = 0;      /* long low observed, waiting out the meaningless high */
+static uint8_t     s_have_low   = 0;      /* s_pending_low holds this bit's low-phase duration */
+static uint32_t    s_pending_low = 0;     /* low-phase duration of the bit currently being timed */
 static uint8_t     s_byte_buf   = 0;
 static uint8_t     s_bit_idx    = 0;      /* bit within current byte (0..7, MSB first) */
 static uint8_t     s_byte_idx   = 0;      /* byte within frame */
 static uint8_t     s_frame[SIF_FRAME_BYTES];
 
-extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim1;
 
 /* ------------------------------------------------------------------ */
 static void sif_reset(void)
 {
-    s_state    = SIF_WAIT_SYNC_LOW;
-    s_bit_idx  = 0;
-    s_byte_idx = 0;
-    s_byte_buf = 0;
+    s_sync_seen   = 0;
+    s_have_low    = 0;
+    s_pending_low = 0;
+    s_bit_idx    = 0;
+    s_byte_idx   = 0;
+    s_byte_buf   = 0;
+}
+
+/* Snapshot whatever bytes were decoded so far, for debug, then reset. */
+static void sif_fail(uint8_t event)
+{
+    uint8_t copy_len = (s_byte_idx < SIF_FRAME_BYTES) ? s_byte_idx : SIF_FRAME_BYTES;
+    for (uint8_t i = 0; i < copy_len; i++) g_fardriver_sif_last_frame[i] = s_frame[i];
+    g_fardriver_sif_last_frame_len = copy_len;
+    g_fardriver_sif_debug_event = event;
+    sif_reset();
 }
 
 /* Push one decoded bit (MSB first) into the frame buffer */
@@ -70,7 +96,7 @@ static void sif_push_bit(uint8_t bit)
         if (s_byte_idx == SIF_FRAME_BYTES) {
             /* Validate fixed header bytes */
             if (s_frame[0] != SIF_DEVICE_CODE || s_frame[1] != SIF_SEQ_CODE) {
-                sif_reset();
+                sif_fail(SIF_DEBUG_INVALID_FRAME);
                 return;
             }
 
@@ -80,7 +106,7 @@ static void sif_push_bit(uint8_t bit)
                 chk ^= s_frame[i];
             }
             if (chk != s_frame[SIF_FRAME_BYTES - 1U]) {
-                sif_reset();
+                sif_fail(SIF_DEBUG_INVALID_FRAME);
                 return;
             }
 
@@ -140,107 +166,123 @@ void FardriverSIF_Init(void)
     memset(&g_fardriver_status, 0, sizeof(g_fardriver_status));
     sif_reset();
 
-    /* Start TIM2 in input-capture mode on CH1 */
-    __HAL_TIM_SET_COUNTER(&htim2, 0);
-    HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
+    /* Start TIM1 in input-capture mode on CH1 */
+    __HAL_TIM_SET_COUNTER(&htim1, 0);
+    HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
 }
 
-/* Called from TIM2_IRQHandler — handle input capture event */
-void FardriverSIF_TIM2_IRQHandler(void)
+/* Called from TIM1_CC_IRQHandler — handle input capture event
+ *
+ * Each bit is one LOW phase followed by one HIGH phase (see header comment).
+ * A rising edge ends a LOW phase (dt = low duration); a falling edge ends a
+ * HIGH phase (dt = high duration). We pair the low duration measured at a
+ * rising edge with the high duration measured at the very next falling edge
+ * -- that pair belongs to the same bit. The frame sync is simply a LOW phase
+ * far longer than any data bit's low phase (> SIF_SYNC_MIN_US), followed by
+ * one "meaningless" high phase that is discarded before DATA0 begins.
+ */
+void FardriverSIF_TIM1_IRQHandler(void)
 {
-    uint32_t sr = TIM2->SR;
+    uint32_t sr = TIM1->SR;
 
     /* Input capture on CH1 */
     if (sr & TIM_SR_CC1IF) {
-        uint32_t ts  = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
-        uint32_t pin = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);  /* current level after edge */
-        uint32_t dt  = ts - s_edge_ts;                       /* µs elapsed since last edge */
-        s_edge_ts    = ts;
+        uint16_t ts   = (uint16_t)HAL_TIM_ReadCapturedValue(&htim1, TIM_CHANNEL_1);
+        uint32_t pin  = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8);  /* current level after edge */
+        uint16_t dt16 = (uint16_t)(ts - s_edge_ts);
+        uint32_t dt   = (uint32_t)dt16;                       /* µs elapsed since last edge, wrap-safe */
 
-        /* Toggle the capture polarity so we catch the opposite edge next time */
-        static uint32_t s_polarity = TIM_INPUTCHANNELPOLARITY_RISING;
-        if (s_polarity == TIM_INPUTCHANNELPOLARITY_RISING) {
-            s_polarity = TIM_INPUTCHANNELPOLARITY_FALLING;
-            __HAL_TIM_SET_CAPTUREPOLARITY(&htim2, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
-        } else {
-            s_polarity = TIM_INPUTCHANNELPOLARITY_RISING;
-            __HAL_TIM_SET_CAPTUREPOLARITY(&htim2, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+        /* Reject very short edges as noise: keep the old edge timestamp so the
+         * glitch is absorbed into the surrounding phase instead of splitting it. */
+        if (dt < SIF_NOISE_MAX_US) {
+            g_fardriver_sif_debug_event = SIF_DEBUG_SHORT_PULSE;
+            __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+            return;
         }
+        s_edge_ts = ts;
 
-        /* pin == 1 means we just saw a rising edge (end of a low pulse) */
-        /* pin == 0 means we just saw a falling edge (end of a high pulse) */
+        g_fardriver_sif_last_dt = dt;
+        g_fardriver_sif_last_pin = (uint8_t)pin;
+        g_fardriver_sif_debug_event = SIF_DEBUG_CAPTURE;
 
-        switch (s_state) {
-        case SIF_WAIT_SYNC_LOW:
-            if (pin == 1U) {
-                /* We measured a low pulse: check if it's the sync */
-                if (dt >= SIF_SYNC_MIN_US) {
-                    s_state = SIF_WAIT_SYNC_HIGH;
-                }
-            }
-            break;
-
-        case SIF_WAIT_SYNC_HIGH:
-            if (pin == 0U) {
-                /* We measured the sync high pulse — now start receiving data bits */
-                s_state    = SIF_RECV_BIT_HIGH;
-                s_bit_idx  = 0;
-                s_byte_idx = 0;
-                s_byte_buf = 0;
-            } else {
-                /* Another low pulse before the sync high — restart */
-                if (dt >= SIF_SYNC_MIN_US) {
-                    /* Still in sync region */
-                } else {
-                    s_state = SIF_WAIT_SYNC_LOW;
-                }
-            }
-            break;
-
-        case SIF_RECV_BIT_HIGH:
-            if (pin == 0U) {
-                /* End of the high portion: save its width */
-                if (dt < SIF_BIT_MIN_US) {
-                    /* Too short — noise, abort frame */
-                    sif_reset();
-                } else {
-                    s_high_us = dt;
-                    s_state   = SIF_RECV_BIT_LOW;
-                }
-            } else {
-                /* Unexpected: a rising edge when we expected falling */
-                sif_reset();
-            }
-            break;
-
-        case SIF_RECV_BIT_LOW:
-            if (pin == 1U) {
-                /* End of the low portion — now we have a full bit */
-                uint32_t low_us = dt;
-                if (low_us < SIF_BIT_MIN_US) {
-                    sif_reset();
-                    break;
-                }
-                /* Bit 0: high > low (2:1 ratio); Bit 1: high < low (1:2 ratio) */
-                uint8_t bit = (s_high_us > low_us) ? 0U : 1U;
-                sif_push_bit(bit);
-
-                /* Check if we fell back into sync (a new frame starting) */
-                if (s_state != SIF_WAIT_SYNC_LOW) {
-                    s_state = SIF_RECV_BIT_HIGH;
-                }
-            } else {
-                /* Unexpected falling edge in low portion */
-                sif_reset();
-            }
-            break;
-
-        default:
+        /* If there is a very long gap, abandon any in-progress frame parse. */
+        if (dt > SIF_FRAME_TIMEOUT_US) {
             sif_reset();
-            break;
+            __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+            return;
         }
 
-        __HAL_TIM_CLEAR_FLAG(&htim2, TIM_FLAG_CC1);
+        if (pin == 1U) {
+            /* Rising edge: dt is the LOW phase duration that just ended. */
+            if (dt >= SIF_SYNC_MIN_US) {
+                /* Long low = start of frame. The following high is meaningless;
+                 * discard it (handled below via s_sync_seen) and start fresh. */
+                memset(s_frame, 0, sizeof(s_frame));
+                s_byte_idx  = 0;
+                s_bit_idx   = 0;
+                s_byte_buf  = 0;
+                s_have_low  = 0;
+                s_sync_seen = 1U;
+                g_fardriver_sif_debug_event = SIF_DEBUG_SYNC_LOW;
+                __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+                return;
+            }
+
+            if (!s_sync_seen) {
+                /* Not synced yet; ignore data bits until we see the long low. */
+                __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+                return;
+            }
+
+            if (dt < SIF_BIT_MIN_US || dt > SIF_BIT_MAX_US) {
+                sif_fail(SIF_DEBUG_INVALID_FRAME);
+                __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+                return;
+            }
+
+            /* This low phase belongs to the next bit (skip one after sync: the
+             * meaningless post-sync high is discarded below, not here). */
+            s_pending_low = dt;
+            s_have_low    = 1U;
+        } else {
+            /* Falling edge: dt is the HIGH phase duration that just ended. */
+            if (!s_sync_seen) {
+                __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+                return;
+            }
+
+            if (!s_have_low) {
+                /* This is the meaningless high right after the sync's long low. */
+                g_fardriver_sif_debug_event = SIF_DEBUG_SYNC_HIGH;
+                __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+                return;
+            }
+
+            if (dt < SIF_BIT_MIN_US || dt > SIF_BIT_MAX_US) {
+                sif_fail(SIF_DEBUG_INVALID_FRAME);
+                __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+                return;
+            }
+
+            /* Decide the bit from the low:high ratio of this single bit period
+             * (bit0 = low longer, bit1 = high longer; nominal ratio 2:1). */
+            uint32_t low = s_pending_low;
+            uint8_t bit;
+            if (dt * 3U >= low * 4U) {
+                bit = 1U;
+            } else if (low * 3U >= dt * 4U) {
+                bit = 0U;
+            } else {
+                sif_fail(SIF_DEBUG_INVALID_FRAME);
+                __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
+                return;
+            }
+
+            s_have_low = 0U;
+            sif_push_bit(bit);
+        }
+
+        __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_CC1);
     }
 }
 
